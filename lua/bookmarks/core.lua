@@ -37,4 +37,19 @@ function M.get_all()
     return all
 end
 
+---Increment the frequency counter on the original bookmark (not a copy).
+---@param file string
+---@param id   string
+function M.increment_fre(file, id)
+    local marks = M.bookmarks[file]
+    if not marks then return end
+    for _, mark in ipairs(marks) do
+        if mark.id == id then
+            mark.fre = mark.fre + 1
+            mark.updated_at = os.time()
+            return
+        end
+    end
+end
+
 return M

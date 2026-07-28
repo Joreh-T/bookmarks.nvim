@@ -32,17 +32,45 @@ function M.open_fzf()
     local mark_lookup = {} -- plain (uncolored) display string → mark data
     local all_marks = core.get_all()
 
-    -- Format (colored for fzf):  "[ANSI]desc[reset]  —  file:line (freq: X)"
+    -- Sort by frequency descending so hot bookmarks surface first
+    table.sort(all_marks, function(a, b)
+        return a.fre > b.fre
+    end)
+
+    -- Build a heat indicator based on frequency relative to the range.
+    local max_fre = all_marks[1] and all_marks[1].fre or 0
+    local min_fre = all_marks[#all_marks] and all_marks[#all_marks].fre or 0
+    local fre_range = max_fre - min_fre
+
+    local function heat(fre)
+        if max_fre == 0 then return "" end
+        local ratio = fre_range == 0 and 0.5 or (fre - min_fre) / fre_range
+        local icon
+        if ratio >= 0.66 then
+            icon = "🔥🔥🔥"
+        elseif ratio >= 0.33 then
+            icon = "🔥🔥"
+        elseif fre > 0 then
+            icon = "🔥"
+        else
+            return ""
+        end
+        return "  " .. icon
+    end
+
+    -- Format (colored for fzf):  "[ANSI]desc[reset]  —  file:line  [🔥]"
     -- Lookup is keyed by the plain version so ANSI stripping in fzf output
     -- doesn't break the match.
     for _, m in ipairs(all_marks) do
         local line_1_indexed = m.line + 1
-        local plain = string.format("%s  —  %s:%d (freq: %d)",
-            m.desc, m.file, line_1_indexed, m.fre)
-        local display = desc_ansi_start
-            and string.format("%s%s%s  —  %s:%d (freq: %d)",
-                desc_ansi_start, m.desc, desc_ansi_end, m.file, line_1_indexed, m.fre)
-            or plain
+        local heat_str = heat(m.fre)
+        local plain = string.format("%s  —  %s:%d%s",
+            m.desc, m.file, line_1_indexed, heat_str)
+        local desc_colored = desc_ansi_start
+            and (desc_ansi_start .. m.desc .. desc_ansi_end)
+            or m.desc
+        local display = string.format("%s  —  %s:%d%s",
+            desc_colored, m.file, line_1_indexed, heat_str)
         table.insert(items, display)
         mark_lookup[plain] = m
     end
@@ -75,9 +103,8 @@ function M.open_fzf()
                 vim.cmd("edit " .. vim.fn.fnameescape(m.file))
                 vim.api.nvim_win_set_cursor(0, { m.line + 1, 0 })
 
-                -- Increment frequency on the exact bookmark by ID
-                m.fre = m.fre + 1
-                m.updated_at = os.time()
+                -- Increment on the original, not the get_all() copy
+                core.increment_fre(m.file, m.id)
                 storage.mark_dirty()
             end,
             ["ctrl-d"] = function(selected)
