@@ -73,15 +73,15 @@ end
 function M.render(buf)
     local file = vim.api.nvim_buf_get_name(buf)
     if file == "" then return end
-    
+
     vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
-    
+
     local marks = core.get_file_bookmarks(file)
     for _, mark in ipairs(marks) do
         local ok, extmark_id = pcall(vim.api.nvim_buf_set_extmark, buf, ns, mark.line, 0, {
             sign_text = config.options.sign_icon,
             sign_hl_group = config.options.sign_hl,
-            virt_text = {{ config.options.virt_text_prefix .. mark.desc, config.options.virt_text_hl }},
+            virt_text = {{ config.options.virt_text_prefix .. mark.desc .. " ", config.options.virt_text_hl }},
             virt_text_pos = "eol",
         })
         if ok then
