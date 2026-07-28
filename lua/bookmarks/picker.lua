@@ -45,32 +45,53 @@ function M.open_fzf()
     local function heat(fre)
         if max_fre == 0 then return "" end
         local ratio = fre_range == 0 and 0.5 or (fre - min_fre) / fre_range
-        local icon
         if ratio >= 0.66 then
-            icon = "🔥🔥🔥"
+            return "🔥🔥🔥"
         elseif ratio >= 0.33 then
-            icon = "🔥🔥"
+            return "🔥🔥"
         elseif fre > 0 then
-            icon = "🔥"
-        else
-            return ""
+            return "🔥"
         end
-        return "  " .. icon
+        return ""
     end
 
-    -- Format (colored for fzf):  "[ANSI]desc[reset]  —  file:line  [🔥]"
+    -- Format:  desc(padded)  file:line(padded)  heat
+    -- All three columns are fixed-width so every row is fully aligned.
     -- Lookup is keyed by the plain version so ANSI stripping in fzf output
     -- doesn't break the match.
+    local DESC_WIDTH = 35
+    local FILE_WIDTH = 90
+
     for _, m in ipairs(all_marks) do
         local line_1_indexed = m.line + 1
-        local heat_str = heat(m.fre)
-        local plain = string.format("%s  —  %s:%d%s",
-            m.desc, m.file, line_1_indexed, heat_str)
+
+        -- Truncate and pad desc to fixed width
+        local desc_fmt = m.desc
+        if #desc_fmt > DESC_WIDTH then
+            desc_fmt = desc_fmt:sub(1, DESC_WIDTH - 3) .. "..."
+        end
+        desc_fmt = string.format("%-" .. DESC_WIDTH .. "s", desc_fmt)
+
+        -- Relative path (to cwd), truncate from left if too long, pad to fixed width
+        local rel_file = vim.fn.fnamemodify(m.file, ":.")
+        local file_col = rel_file .. ":" .. line_1_indexed
+        if #file_col > FILE_WIDTH then
+            file_col = "…" .. file_col:sub(#file_col - FILE_WIDTH + 4)
+        end
+        file_col = string.format("%-" .. FILE_WIDTH .. "s", file_col)
+
+        -- Heat emoji
+        local heat_fmt = heat(m.fre)
+
+        -- Plain version for mark_lookup key
+        local plain = string.format("%s  %s  %s", desc_fmt, file_col, heat_fmt)
+
+        -- Colored version for fzf display
         local desc_colored = desc_ansi_start
-            and (desc_ansi_start .. m.desc .. desc_ansi_end)
-            or m.desc
-        local display = string.format("%s  —  %s:%d%s",
-            desc_colored, m.file, line_1_indexed, heat_str)
+            and (desc_ansi_start .. desc_fmt .. desc_ansi_end)
+            or desc_fmt
+        local display = string.format("%s  %s  %s", desc_colored, file_col, heat_fmt)
+
         table.insert(items, display)
         mark_lookup[plain] = m
     end
