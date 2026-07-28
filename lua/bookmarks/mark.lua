@@ -4,42 +4,21 @@ local config = require("bookmarks.config")
 
 local ns = vim.api.nvim_create_namespace("bookmarks")
 
-function M.get_treesitter_context(buf, line)
-    local ok, ts_utils = pcall(require, "nvim-treesitter.ts_utils")
-    if not ok then return nil end
-    local parsers = require("nvim-treesitter.parsers")
-    if not parsers.has_parser() then return nil end
-
-    -- If a line was provided, temporarily move the cursor there to get the
-    -- correct node; restore afterwards so the caller is not surprised.
-    local saved_win, saved_cursor
-    if line then
-        saved_win = vim.api.nvim_get_current_win()
-        saved_cursor = vim.api.nvim_win_get_cursor(saved_win)
-        pcall(vim.api.nvim_win_set_cursor, saved_win, { line + 1, 0 })
+---Return a short default description for a bookmark at the given line.
+---Uses the line content (trimmed and truncated) so it works with any file
+---type, no treesitter dependency needed.
+---@param buf  number  Buffer handle
+---@param line number  0-indexed line number
+---@return string
+function M.get_line_context(buf, line)
+    local text = vim.api.nvim_buf_get_lines(buf, line, line + 1, false)[1]
+    if not text then return "Bookmark" end
+    text = text:match("^%s*(.-)%s*$") -- trim leading/trailing whitespace
+    if text == "" then return "Bookmark" end
+    if #text > 50 then
+        text = text:sub(1, 47) .. "..."
     end
-
-    local node = ts_utils.get_node_at_cursor()
-
-    if saved_win then
-        pcall(vim.api.nvim_win_set_cursor, saved_win, saved_cursor)
-    end
-
-    -- traverse up to find function or class
-    while node do
-        local type = node:type()
-        if type == "function_declaration" or type == "method_declaration" or type == "class_declaration" then
-            -- Get name node
-            for child in node:iter_children() do
-                if child:type() == "identifier" then
-                    return vim.treesitter.get_node_text(child, buf)
-                end
-            end
-            return type
-        end
-        node = node:parent()
-    end
-    return nil
+    return text
 end
 
 function M.add_bookmark(buf, line, desc)

@@ -98,8 +98,8 @@ function M.add()
     local buf = vim.api.nvim_get_current_buf()
     local cursor = vim.api.nvim_win_get_cursor(0)
     local line = cursor[1] - 1 -- 0-indexed
-    -- Capture treesitter context synchronously while cursor is at the bookmark position
-    local auto_desc = mark.get_treesitter_context(buf) or "Bookmark"
+    -- Use the current line's content as the default description
+    local auto_desc = mark.get_line_context(buf, line)
 
     vim.ui.input({ prompt = "Bookmark Desc (" .. auto_desc .. "): " }, function(input)
         if input == nil then return end -- User cancelled

@@ -11,7 +11,6 @@ native extmarks.
 - Add / delete bookmarks with a description on any line
 - **Sign icon** in the sign column and **virtual text** at end-of-line
 - **fzf-lua** picker for browsing, jumping, and deleting bookmarks
-- Treesitter-aware: auto-detects function/class name as the default description
 - Per-project JSON storage (keyed by `getcwd()`)
 - Frequency and last-used tracking
   
